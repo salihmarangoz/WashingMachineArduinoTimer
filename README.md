@@ -1,7 +1,4 @@
-# washing_machine_arduino_timer
-# IN DEVELOPMENT
-Arduino based washing machine timer
-
+# Arduino Based Washing Machine Timer
 
 
 ![](img/finite_state_machine.png)

@@ -28,16 +28,17 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /**
-  * Arduino Timer for Washing Machine
+  * Arduino Based Timer for Washing Machine
   * Salih MARANGOZ - 2018
   */
 
 #include <SegmentDisplay.h> // https://github.com/dgduncan/SevenSegment
-#include <Fsm.h> // https://github.com/jonblack/arduino-fsm
+#include <Fsm.h>            // https://github.com/jonblack/arduino-fsm
+#include <Chrono.h>         // https://github.com/SofaPirate/Chrono
 
 #define DEBUG
 #ifdef DEBUG
-  #define SERIAL_LOG(M) Serial.println("[" + String(__func__) + "] " + String(M)  + "\n")
+  #define SERIAL_LOG(M) Serial.println(M)
 #else
   #define SERIAL_LOG(M)
 #endif
@@ -55,6 +56,7 @@
 SegmentDisplay seg(6, 7, 8, 9, 3, 11, 10, 5); // Look above or github page for pin connection
 const int  relay_pin   =     12;
 const int  button_pin  =     2;
+const int relay_trigger_duration = 1500; // in ms
 
 //////////// PROTOTYPES AND TYPEDEFS ////////////
 void resetOnState();
@@ -67,12 +69,14 @@ void updateDisplayOnState();
 
 typedef enum
 {
-    EVENT_OK = 1,
+    EVENT_OK = 0,
     EVENT_BUTTON_SHORT_PRESSED,
     EVENT_BUTTON_LONG_PRESSED,
     EVENT_TIME_OUT,
     EVENT_TIME_PASSED_30_MIN
 }Event;
+
+String event_name[5] = {"EVENT_OK", "EVENT_BUTTON_SHORT_PRESSED", "EVENT_BUTTON_LONG_PRESSED", "EVENT_TIME_OUT", "EVENT_TIME_PASSED_30_MIN"};
 
 //////////// GLOBAL VARIABLES ////////////
 Event current_event = EVENT_OK;
@@ -84,10 +88,16 @@ State state_reset_time(NULL, resetTimeOnState, NULL);
 State state_trigger_machine(NULL, triggerMachineOnState, NULL);
 State state_update_display(NULL, updateDisplayOnState, NULL);
 Fsm fsm(&state_reset);
+Chrono chrono(Chrono::SECONDS);
+unsigned long timeout_seconds;
+
 
 //////////// SETUP FUNCTION ////////////
 void setup() {
     Serial.begin(9600);
+    pinMode(relay_pin, OUTPUT);
+    digitalWrite(relay_pin, HIGH);
+    
     fsm.add_transition(&state_reset, &state_check_button, EVENT_OK, NULL);
     fsm.add_transition(&state_check_button, &state_check_time, EVENT_OK, NULL);
     fsm.add_transition(&state_check_time, &state_check_button, EVENT_OK, NULL);
@@ -99,51 +109,81 @@ void setup() {
     fsm.add_transition(&state_update_display, &state_check_button, EVENT_OK, NULL);
     fsm.add_transition(&state_check_time, &state_trigger_machine, EVENT_TIME_OUT, NULL);
     fsm.add_transition(&state_trigger_machine, &state_reset, EVENT_OK, NULL);
-    fsm.run_machine();
 }
 
 //////////// MAIN LOOP FUNCTION ////////////
 void loop() {
-    Serial.println("Current Event: " + String(current_event));
+    SERIAL_LOG("Current Event: " + String(current_event));
     fsm.trigger(current_event);
+    fsm.run_machine();
+    SERIAL_LOG(String(chrono.elapsed()));
+    SERIAL_LOG("====================");
 }
 
 //////////// ON-STATE CALLBACK FUNCTIONS ////////////
-void resetOnState()
+void resetOnState() // done
 {
+    SERIAL_LOG("Entered resetOnState");
+#ifdef DEBUG
+    SERIAL_LOG("Running testDisplay()");
     seg.testDisplay();
+#endif
     seg.displayDecimalPoint();
+    chrono.restart();
+    chrono.stop();
+    timeout_seconds = -1;
     current_event = EVENT_OK;
 }
 
 void checkButtonOnState()
 {
-    
+    SERIAL_LOG("Entered checkButtonOnState");
 }
 
-void checkTimeOnState()
+void checkTimeOnState() // done
 {
+    SERIAL_LOG("Entered checkTimeOnState");
+    if (chrono.hasPassed(timeout_seconds))
+    {
+        current_event = EVENT_TIME_OUT;
+        return;
+    }
     
+    current_event = EVENT_OK;
 }
 
 void modifyTimeOnState()
 {
-    
+    SERIAL_LOG("Entered modifyTimeOnState");
 }
 
-void resetTimeOnState()
+void resetTimeOnState() // done
 {
-    
+    SERIAL_LOG("Entered resetTimeOnState");
+    chrono.restart();
+    chrono.stop();
+    seg.displayDecimalPoint();
+    current_event = EVENT_OK;
 }
 
-void triggerMachineOnState()
+void triggerMachineOnState() // done
 {
+    SERIAL_LOG("Entered triggerMachineOnState");
     
+    SERIAL_LOG("Relay switched on");
+    digitalWrite(relay_pin, LOW);
+    
+    delay(relay_trigger_duration);
+
+    SERIAL_LOG("Relay switched off");
+    digitalWrite(relay_pin, HIGH);
+
+    current_event = EVENT_OK;
 }
 
 void updateDisplayOnState()
 {
-    
+    SERIAL_LOG("Entered updateDisplayOnState");
 }
 
 

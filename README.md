@@ -4,4 +4,4 @@ Arduino based washing machine timer
 
 
 
-![](img\finite_state_machine.png)
+![](img/finite_state_machine.png)

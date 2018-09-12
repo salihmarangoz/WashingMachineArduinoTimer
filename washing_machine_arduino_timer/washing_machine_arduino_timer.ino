@@ -84,7 +84,6 @@ State state_reset(NULL, resetOnState, NULL);
 State state_check_button(NULL, checkButtonOnState, NULL);
 State state_check_time(NULL, checkTimeOnState, NULL);
 State state_modify_time(NULL, modifyTimeOnState, NULL);
-State state_reset_time(NULL, resetTimeOnState, NULL);
 State state_trigger_machine(NULL, triggerMachineOnState, NULL);
 State state_update_display(NULL, updateDisplayOnState, NULL);
 Fsm fsm(&state_reset);
@@ -103,8 +102,7 @@ void setup() {
     fsm.add_transition(&state_check_time, &state_check_button, EVENT_OK, NULL);
     fsm.add_transition(&state_check_button, &state_modify_time, EVENT_BUTTON_SHORT_PRESSED, NULL);
     fsm.add_transition(&state_modify_time, &state_check_time, EVENT_OK, NULL);
-    fsm.add_transition(&state_check_button, &state_reset_time, EVENT_BUTTON_LONG_PRESSED, NULL);
-    fsm.add_transition(&state_reset_time, &state_check_time, EVENT_OK, NULL);
+    fsm.add_transition(&state_check_button, &state_reset, EVENT_BUTTON_LONG_PRESSED, NULL);
     fsm.add_transition(&state_check_time, &state_update_display, EVENT_TIME_PASSED_30_MIN, NULL);
     fsm.add_transition(&state_update_display, &state_check_button, EVENT_OK, NULL);
     fsm.add_transition(&state_check_time, &state_trigger_machine, EVENT_TIME_OUT, NULL);
@@ -155,15 +153,6 @@ void checkTimeOnState() // done
 void modifyTimeOnState()
 {
     SERIAL_LOG("Entered modifyTimeOnState");
-}
-
-void resetTimeOnState() // done
-{
-    SERIAL_LOG("Entered resetTimeOnState");
-    chrono.restart();
-    chrono.stop();
-    seg.displayDecimalPoint();
-    current_event = EVENT_OK;
 }
 
 void triggerMachineOnState() // done

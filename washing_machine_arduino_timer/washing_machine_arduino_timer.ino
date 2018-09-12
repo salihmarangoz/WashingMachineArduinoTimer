@@ -53,19 +53,21 @@
 //|            |
 //|____________|
 //1, 2, CA, 4, 5
-SegmentDisplay seg(6, 7, 8, 9, 3, 11, 10, 5); // Look above or github page for pin connection
-const int  relay_pin   =     12;
-const int  button_pin  =     2;
-const int relay_trigger_duration = 1500; // in ms
+SegmentDisplay seg_(6, 7, 8, 9, 3, 11, 10, 5);  // Look above or github page for pin connection
+const int  relay_pin_             = 12;
+const int  button_pin_            = 2;
+const int relay_trigger_duration_ = 1500;       // in ms
+const int hours_upper_limit_      = 10;          // limited to 9  hours (exclusive)
 
 //////////// PROTOTYPES AND TYPEDEFS ////////////
 void resetOnState();
 void checkButtonOnState();
 void checkTimeOnState();
-void modifyTimeOnState();
+void updateTimeOnState();
 void resetTimeOnState();
 void triggerMachineOnState();
 void updateDisplayOnState();
+unsigned int secondsToHours(unsigned long long sec);
 
 typedef enum
 {
@@ -73,107 +75,135 @@ typedef enum
     EVENT_BUTTON_SHORT_PRESSED,
     EVENT_BUTTON_LONG_PRESSED,
     EVENT_TIME_OUT,
-    EVENT_TIME_PASSED_30_MIN
 }Event;
-
-String event_name[5] = {"EVENT_OK", "EVENT_BUTTON_SHORT_PRESSED", "EVENT_BUTTON_LONG_PRESSED", "EVENT_TIME_OUT", "EVENT_TIME_PASSED_30_MIN"};
+String event_name_[] = {"EVENT_OK", "EVENT_BUTTON_SHORT_PRESSED", "EVENT_BUTTON_LONG_PRESSED", "EVENT_TIME_OUT"};
 
 //////////// GLOBAL VARIABLES ////////////
-Event current_event = EVENT_OK;
-State state_reset(NULL, resetOnState, NULL);
-State state_check_button(NULL, checkButtonOnState, NULL);
-State state_check_time(NULL, checkTimeOnState, NULL);
-State state_modify_time(NULL, modifyTimeOnState, NULL);
-State state_trigger_machine(NULL, triggerMachineOnState, NULL);
-State state_update_display(NULL, updateDisplayOnState, NULL);
-Fsm fsm(&state_reset);
-Chrono chrono(Chrono::SECONDS);
-unsigned long timeout_seconds;
+Event current_event_ = EVENT_OK;
+State state_reset_(NULL, resetOnState, NULL);
+State state_check_button_(NULL, checkButtonOnState, NULL);
+State state_check_time_(NULL, checkTimeOnState, NULL);
+State state_update_time_(NULL, updateTimeOnState, NULL);
+State state_trigger_machine_(NULL, triggerMachineOnState, NULL);
+State state_update_display_(NULL, updateDisplayOnState, NULL);
+Fsm fsm_(&state_reset_);
+Chrono chrono_(Chrono::SECONDS);
+unsigned long long timeout_seconds_;
 
 
 //////////// SETUP FUNCTION ////////////
 void setup() {
     Serial.begin(9600);
-    pinMode(relay_pin, OUTPUT);
-    digitalWrite(relay_pin, HIGH);
+    pinMode(relay_pin_, OUTPUT);
+    digitalWrite(relay_pin_, HIGH);
     
-    fsm.add_transition(&state_reset, &state_check_button, EVENT_OK, NULL);
-    fsm.add_transition(&state_check_button, &state_check_time, EVENT_OK, NULL);
-    fsm.add_transition(&state_check_time, &state_check_button, EVENT_OK, NULL);
-    fsm.add_transition(&state_check_button, &state_modify_time, EVENT_BUTTON_SHORT_PRESSED, NULL);
-    fsm.add_transition(&state_modify_time, &state_check_time, EVENT_OK, NULL);
-    fsm.add_transition(&state_check_button, &state_reset, EVENT_BUTTON_LONG_PRESSED, NULL);
-    fsm.add_transition(&state_check_time, &state_update_display, EVENT_TIME_PASSED_30_MIN, NULL);
-    fsm.add_transition(&state_update_display, &state_check_button, EVENT_OK, NULL);
-    fsm.add_transition(&state_check_time, &state_trigger_machine, EVENT_TIME_OUT, NULL);
-    fsm.add_transition(&state_trigger_machine, &state_reset, EVENT_OK, NULL);
+    fsm_.add_transition(&state_reset_, &state_check_button_, EVENT_OK, NULL);
+    fsm_.add_transition(&state_check_button_, &state_check_time_, EVENT_OK, NULL);
+    fsm_.add_transition(&state_check_button_, &state_update_time_, EVENT_BUTTON_SHORT_PRESSED, NULL);
+    fsm_.add_transition(&state_update_time_, &state_check_time_, EVENT_OK, NULL);
+    fsm_.add_transition(&state_check_button_, &state_reset_, EVENT_BUTTON_LONG_PRESSED, NULL);
+    fsm_.add_transition(&state_check_time_, &state_update_display_, EVENT_OK, NULL);
+    fsm_.add_transition(&state_update_display_, &state_check_button_, EVENT_OK, NULL);
+    fsm_.add_transition(&state_check_time_, &state_trigger_machine_, EVENT_TIME_OUT, NULL);
+    fsm_.add_transition(&state_trigger_machine_, &state_reset_, EVENT_OK, NULL);
+
+#ifdef DEBUG
+    //SERIAL_LOG("Running seven segment display test");
+    //seg_.testDisplay();
+#endif
 }
 
 //////////// MAIN LOOP FUNCTION ////////////
 void loop() {
-    SERIAL_LOG("Current Event: " + String(current_event));
-    fsm.trigger(current_event);
-    fsm.run_machine();
-    SERIAL_LOG(String(chrono.elapsed()));
+    SERIAL_LOG("Current Event: " + String(event_name_[current_event_]));
+    fsm_.trigger(current_event_);
+    fsm_.run_machine();
     SERIAL_LOG("====================");
 }
 
 //////////// ON-STATE CALLBACK FUNCTIONS ////////////
-void resetOnState() // done
+void resetOnState()
 {
     SERIAL_LOG("Entered resetOnState");
-#ifdef DEBUG
-    SERIAL_LOG("Running testDisplay()");
-    seg.testDisplay();
-#endif
-    seg.displayDecimalPoint();
-    chrono.restart();
-    chrono.stop();
-    timeout_seconds = -1;
-    current_event = EVENT_OK;
+    
+    chrono_.restart();
+    chrono_.stop();
+    timeout_seconds_ = 0;
+    
+    current_event_ = EVENT_OK;
 }
 
 void checkButtonOnState()
 {
     SERIAL_LOG("Entered checkButtonOnState");
+
+    // TODO: READ BUTTON HERE !
 }
 
-void checkTimeOnState() // done
+void checkTimeOnState()
 {
     SERIAL_LOG("Entered checkTimeOnState");
-    if (chrono.hasPassed(timeout_seconds))
+
+    SERIAL_LOG("Timeout Seconds: " + String((int)timeout_seconds_));  // String() constructor does not accept unsigned long long ? :(
+    SERIAL_LOG("Chrono Elapsed: " + String(chrono_.elapsed()));
+    SERIAL_LOG("Chrono isRunning: " + String(chrono_.isRunning()));
+    
+    if (chrono_.hasPassed(timeout_seconds_) && timeout_seconds_ != 0)
     {
-        current_event = EVENT_TIME_OUT;
+        current_event_ = EVENT_TIME_OUT;
         return;
     }
     
-    current_event = EVENT_OK;
+    current_event_ = EVENT_OK;
 }
 
-void modifyTimeOnState()
+void updateTimeOnState()
 {
     SERIAL_LOG("Entered modifyTimeOnState");
+
+    // Add one hour to timeout
+    unsigned int timeout_hours = timeout_seconds_ / 3600;
+    timeout_hours = (timeout_hours+1) % (hours_upper_limit_);
+    timeout_seconds_ = timeout_hours * 3600;
+    SERIAL_LOG("Timeout seconds changed to: " + String((int)timeout_seconds_));
+
+    // Reset chrono
+    chrono_.restart();
+    chrono_.stop();
+    SERIAL_LOG("Chrono reset");
+
+    if (timeout_seconds_ != 0)
+    {
+        chrono_.start();
+        SERIAL_LOG("Chrono started");
+    }
+    
+    current_event_ = EVENT_OK;
 }
 
-void triggerMachineOnState() // done
+void triggerMachineOnState()
 {
     SERIAL_LOG("Entered triggerMachineOnState");
     
     SERIAL_LOG("Relay switched on");
-    digitalWrite(relay_pin, LOW);
+    digitalWrite(relay_pin_, LOW);
     
-    delay(relay_trigger_duration);
+    delay(relay_trigger_duration_);
 
     SERIAL_LOG("Relay switched off");
-    digitalWrite(relay_pin, HIGH);
+    digitalWrite(relay_pin_, HIGH);
 
-    current_event = EVENT_OK;
+    current_event_ = EVENT_OK;
 }
 
 void updateDisplayOnState()
 {
     SERIAL_LOG("Entered updateDisplayOnState");
+    
+    unsigned int hours = timeout_seconds_ / 3600;
+    seg_.displayHex(hours, false);
+    SERIAL_LOG("Displaying digit: " + String(hours));
+
+    current_event_ = EVENT_OK;
 }
-
-
 

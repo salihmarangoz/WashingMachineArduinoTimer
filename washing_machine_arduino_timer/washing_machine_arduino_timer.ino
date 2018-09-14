@@ -35,12 +35,13 @@
 #include <SegmentDisplay.h> // https://github.com/dgduncan/SevenSegment
 #include <Fsm.h>            // https://github.com/jonblack/arduino-fsm
 #include <Chrono.h>         // https://github.com/SofaPirate/Chrono
+#include <SuperButton.hpp>  // https://github.com/slavaza/SuperButton
 
 #define DEBUG
 #ifdef DEBUG
-  #define SERIAL_LOG(M) Serial.println(M)
+    #define SERIAL_LOG(M) Serial.println(M)
 #else
-  #define SERIAL_LOG(M)
+    #define SERIAL_LOG(M)
 #endif
 
 //////////// CONSTANTS ////////////
@@ -55,9 +56,16 @@
 //1, 2, CA, 4, 5
 SegmentDisplay seg_(6, 7, 8, 9, 3, 11, 10, 5);  // Look above or github page for pin connection
 const int  relay_pin_             = 12;
-const int  button_pin_            = 2;
+const int  button_pin_            = 4;
 const int relay_trigger_duration_ = 1500;       // in ms
-const int hours_upper_limit_      = 10;          // limited to 9  hours (exclusive)
+const int hours_upper_limit_      = 16;         // [0-9] -> set 10, [0-f] -> set 16
+const int button_debounce_time_   = 100;
+const int button_long_press_time_ = 2000;
+#ifdef DEBUG
+    const int seconds_in_hour_ = 5;
+#else
+    const int seconds_in_hour_ = 3600;
+#endif
 
 //////////// PROTOTYPES AND TYPEDEFS ////////////
 void resetOnState();
@@ -67,7 +75,6 @@ void updateTimeOnState();
 void resetTimeOnState();
 void triggerMachineOnState();
 void updateDisplayOnState();
-unsigned int secondsToHours(unsigned long long sec);
 
 typedef enum
 {
@@ -88,12 +95,15 @@ State state_trigger_machine_(NULL, triggerMachineOnState, NULL);
 State state_update_display_(NULL, updateDisplayOnState, NULL);
 Fsm fsm_(&state_reset_);
 Chrono chrono_(Chrono::SECONDS);
+SuperButton button_(button_pin_, button_debounce_time_, 0, button_long_press_time_);
 unsigned long long timeout_seconds_;
+bool led_;
 
 
 //////////// SETUP FUNCTION ////////////
 void setup() {
-    Serial.begin(9600);
+    Serial.begin(115200);
+    pinMode(LED_BUILTIN, OUTPUT);
     pinMode(relay_pin_, OUTPUT);
     digitalWrite(relay_pin_, HIGH);
     
@@ -119,6 +129,7 @@ void loop() {
     fsm_.trigger(current_event_);
     fsm_.run_machine();
     SERIAL_LOG("====================");
+    digitalWrite(LED_BUILTIN, led_ = !led_);
 }
 
 //////////// ON-STATE CALLBACK FUNCTIONS ////////////
@@ -137,7 +148,23 @@ void checkButtonOnState()
 {
     SERIAL_LOG("Entered checkButtonOnState");
 
-    // TODO: READ BUTTON HERE !
+    SERIAL_LOG("Button state: " + String( digitalRead(button_pin_) ) );
+
+    switch (button_.pressed())
+    {
+        case SuperButton::Press::SINGLE: 
+            current_event_ = EVENT_BUTTON_SHORT_PRESSED; 
+            return;
+        case SuperButton::Press::DOUBLE:
+            // nothing
+            break;
+        case SuperButton::Press::LONGER:
+            current_event_ = EVENT_BUTTON_LONG_PRESSED; 
+            return;
+        default:;
+    }
+
+    current_event_ = EVENT_OK;
 }
 
 void checkTimeOnState()
@@ -162,9 +189,9 @@ void updateTimeOnState()
     SERIAL_LOG("Entered modifyTimeOnState");
 
     // Add one hour to timeout
-    unsigned int timeout_hours = timeout_seconds_ / 3600;
+    unsigned int timeout_hours = timeout_seconds_ / seconds_in_hour_;
     timeout_hours = (timeout_hours+1) % (hours_upper_limit_);
-    timeout_seconds_ = timeout_hours * 3600;
+    timeout_seconds_ = timeout_hours * seconds_in_hour_;
     SERIAL_LOG("Timeout seconds changed to: " + String((int)timeout_seconds_));
 
     // Reset chrono
@@ -200,7 +227,16 @@ void updateDisplayOnState()
 {
     SERIAL_LOG("Entered updateDisplayOnState");
     
-    unsigned int hours = timeout_seconds_ / 3600;
+    unsigned int hours;
+    if (timeout_seconds_ == 0)
+    {
+        hours = 0;
+    }
+    else
+    {
+        hours = (timeout_seconds_ - chrono_.elapsed() - 1 ) / seconds_in_hour_ + 1;
+    }
+    
     seg_.displayHex(hours, false);
     SERIAL_LOG("Displaying digit: " + String(hours));
 

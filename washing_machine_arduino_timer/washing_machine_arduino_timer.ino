@@ -37,7 +37,7 @@
 #include <Chrono.h>         // https://github.com/SofaPirate/Chrono
 #include <SuperButton.hpp>  // https://github.com/slavaza/SuperButton
 
-#define DEBUG
+//#define DEBUG
 #ifdef DEBUG
     #define SERIAL_LOG(M) Serial.println(M)
 #else
@@ -106,20 +106,20 @@ void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
     pinMode(relay_pin_, OUTPUT);
     digitalWrite(relay_pin_, HIGH);
-    
-    fsm_.add_transition(&state_reset_, &state_check_button_, EVENT_OK, NULL);
-    fsm_.add_transition(&state_check_button_, &state_check_time_, EVENT_OK, NULL);
+
     fsm_.add_transition(&state_check_button_, &state_update_time_, EVENT_BUTTON_SHORT_PRESSED, NULL);
-    fsm_.add_transition(&state_update_time_, &state_check_time_, EVENT_OK, NULL);
     fsm_.add_transition(&state_check_button_, &state_reset_, EVENT_BUTTON_LONG_PRESSED, NULL);
-    fsm_.add_transition(&state_check_time_, &state_update_display_, EVENT_OK, NULL);
-    fsm_.add_transition(&state_update_display_, &state_check_button_, EVENT_OK, NULL);
     fsm_.add_transition(&state_check_time_, &state_trigger_machine_, EVENT_TIME_OUT, NULL);
+    fsm_.add_transition(&state_reset_, &state_check_button_, EVENT_OK, NULL);
+    fsm_.add_transition(&state_check_button_, &state_update_display_, EVENT_OK, NULL);
+    fsm_.add_transition(&state_update_time_, &state_update_display_, EVENT_OK, NULL);
+    fsm_.add_transition(&state_check_time_, &state_check_button_, EVENT_OK, NULL);
+    fsm_.add_transition(&state_update_display_, &state_check_time_, EVENT_OK, NULL);
     fsm_.add_transition(&state_trigger_machine_, &state_reset_, EVENT_OK, NULL);
 
 #ifdef DEBUG
-    //SERIAL_LOG("Running seven segment display test");
-    //seg_.testDisplay();
+    SERIAL_LOG("Running seven segment display test");
+    seg_.testDisplay();
 #endif
 }
 
@@ -228,13 +228,14 @@ void updateDisplayOnState()
     SERIAL_LOG("Entered updateDisplayOnState");
     
     unsigned int hours;
-    if (timeout_seconds_ == 0)
+    unsigned long long elapsed_seconds = chrono_.elapsed();
+    if (timeout_seconds_ - elapsed_seconds <= 1)
     {
         hours = 0;
     }
     else
     {
-        hours = (timeout_seconds_ - chrono_.elapsed() - 1 ) / seconds_in_hour_ + 1;
+        hours = (timeout_seconds_ - elapsed_seconds - 1 ) / seconds_in_hour_ + 1;
     }
     
     seg_.displayHex(hours, false);

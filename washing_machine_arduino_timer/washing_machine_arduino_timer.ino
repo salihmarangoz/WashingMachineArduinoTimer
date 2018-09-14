@@ -30,6 +30,7 @@
 /**
   * Arduino Based Timer for Washing Machine
   * Salih MARANGOZ - 2018
+  * salih285@gmail.com
   */
 
 #include <SegmentDisplay.h> // https://github.com/dgduncan/SevenSegment

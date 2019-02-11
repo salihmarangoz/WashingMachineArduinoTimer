@@ -4,7 +4,7 @@
 
 ## Read Before Continuing!
 
-![high_voltage](D:\Salih\Programming\washing_machine_arduino_timer\img\high_voltage.png)
+![high_voltage](img/high_voltage.png)
 
 Washing machine, dishwasher and other machines operates at **high voltage**. Take precautions and always be careful. Wrong decisions may result in **DEATH !** Main board of the machines includes high voltage even it is a simply button. 
 
@@ -83,4 +83,4 @@ To overcome this problem, I simply set up a timer for the machine.
 
 ## 3. Photos
 
-![photos](img\photos.jpg)
+![photos](img/photos.jpg)

@@ -17,7 +17,7 @@ There was two main problems:
 
 To overcome this problem, I simply set up a timer for the machine. 
 
-### 1.1. How It Works
+### 1.1. How To Use
 
 - Short press will increase waiting time by one hour.
 - Long press will reset everything.

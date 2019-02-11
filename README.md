@@ -6,7 +6,7 @@
 
 ![high_voltage](img/high_voltage.png)
 
-Washing machine, dishwasher and other machines operates at **high voltage**. Take precautions and always be careful. Wrong decisions may result in **DEATH !** Main board of the machines includes high voltage even it is a simply button. 
+Washing machine, dishwasher and other machines operates at **high voltage**. Take precautions and always be careful. Wrong decisions may result in **DEATH !** Main board of the machines include high voltage even on a simply button. 
 
 ## 1. Introduction
 

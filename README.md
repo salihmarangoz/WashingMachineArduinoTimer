@@ -1,6 +1,17 @@
 # Arduino Based Washing Machine Timer
 
-[TOC]
+   * [Arduino Based Washing Machine Timer](#arduino-based-washing-machine-timer)
+      * [Read Before Continuing!](#read-before-continuing)
+      * [1. Introduction](#1-introduction)
+         * [1.1. How To Use](#11-how-to-use)
+         * [1.2. Requirements](#12-requirements)
+      * [2. Installation](#2-installation)
+         * [2.1. Arduino](#21-arduino)
+         * [2.2. Hacking Start Button](#22-hacking-start-button)
+         * [2.3. Covering The Relay For Safety](#23-covering-the-relay-for-safety)
+         * [2.4. Testing Leaks](#24-testing-leaks)
+         * [2.5 Testing The System](#25-testing-the-system)
+      * [3. Photos](#3-photos)
 
 ## Read Before Continuing!
 
